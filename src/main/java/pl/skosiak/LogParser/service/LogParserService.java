@@ -2,6 +2,11 @@ package pl.skosiak.LogParser.service;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import pl.skosiak.LogParser.model.ApplicationLogPattern;
@@ -9,6 +14,8 @@ import pl.skosiak.LogParser.model.ParserPattern;
 import pl.skosiak.LogParser.model.dto.LogDto;
 import pl.skosiak.LogParser.model.exception.LineParseException;
 import pl.skosiak.LogParser.model.mapper.LogMapper;
+import pl.skosiak.LogParser.model.request.LogListRequest;
+import pl.skosiak.LogParser.persistence.entity.Log;
 import pl.skosiak.LogParser.persistence.entity.NonParsableLog;
 import pl.skosiak.LogParser.persistence.repository.LogRepository;
 import pl.skosiak.LogParser.persistence.repository.NonParsableLogRepository;
@@ -20,8 +27,10 @@ import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -85,7 +94,6 @@ public class LogParserService {
         }
     }
 
-
     private String getMatchingString(Pattern pattern, String text){
         Matcher matcher = pattern.matcher(text);
         if (matcher.find()){
@@ -94,24 +102,42 @@ public class LogParserService {
         return null;
     }
 
-//    private String getLogEntryFromBufferedReader(BufferedReader reader) throws IOException {
-//        StringBuilder logEntry = new StringBuilder();
-//        String line = reader.readLine();
-//        while(!doesLineContainsTimePattern(line)){
-//            logEntry.append(line);
-//            logEntry.append("\n");
-//            line = reader.readLine();
-//        }
-//        if(logEntry.toString().isEmpty()){
-//            return line;
-//        }
-//        return logEntry.toString();
-//    }
-
     private boolean doesLineContainsTimePattern(String line){
         if(Objects.isNull(line)){
             return true;
         }
         return !Objects.isNull(getMatchingString(pattern.TIME_PATTERN, line));
+    }
+
+    public Page<LogDto> findLogs(LogListRequest request) {
+        PageRequest pageRequest = requestToPage(request);
+        Page<Log>  result;
+        if(Objects.isNull(request.getDateFrom()) || Objects.isNull(request.getDateTo())){
+            result = logRepository.findAll(pageRequest);
+        }else {
+            result = logRepository.findAllByLogTimeBetween(request.getDateFrom(),
+                    request.getDateTo(), pageRequest);
+        }
+
+        return new PageImpl<>(result.get().map(LogMapper::mapEntityToDto).collect(Collectors.toList()),
+                result.getPageable(),
+                result.getTotalElements());
+    }
+
+
+    private PageRequest requestToPage(LogListRequest request){
+        if(Strings.isBlank(request.getSortField())){
+            return  PageRequest.of(request.getPageNumber(), request.getPageSize());
+        }
+
+       Sort.Direction direction = Optional.ofNullable(request.getSortDirection())
+               .map(dir ->{
+                   if(dir.equals("ASC")){
+                       return Sort.Direction.ASC;
+                   }
+                   return Sort.Direction.DESC;
+               }).orElse(Sort.Direction.DESC);
+
+        return PageRequest.of(request.getPageNumber(), request.getPageSize(), Sort.by(direction,request.getSortField()));
     }
 }

@@ -1,7 +1,9 @@
 package pl.skosiak.LogParser.persistence.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -10,6 +12,8 @@ import java.time.LocalDateTime;
 @Builder
 @Entity
 @Table(name = "log", schema = "logparser")
+@NoArgsConstructor
+@AllArgsConstructor
 public class Log {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "log_seq")
