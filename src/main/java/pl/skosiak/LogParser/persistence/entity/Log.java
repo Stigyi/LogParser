@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 public class Log {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "log_seq")
-    @SequenceGenerator(name="log_error_generator", sequenceName = "log_seq", allocationSize=1)
     private Long id;
     private LocalDateTime logTime;
     private String logLevel;
